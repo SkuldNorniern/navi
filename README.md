@@ -1,0 +1,2 @@
+# navi
+Small Language model 
