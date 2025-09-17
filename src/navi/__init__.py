@@ -1,2 +1,2 @@
-def hello() -> str:
+def main() -> str:
     return "Hello from navi!"
