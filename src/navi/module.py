@@ -2,6 +2,7 @@ import math
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+from typing import Optional
 
 
 # Norm Layer
@@ -39,24 +40,27 @@ class RoPE(nn.Module):
 
     def __call__(self, x: jnp.ndarray, seq_len: Optional[int] = None) -> jnp.ndarray:
         """Apply RoPE to input tensor."""
+        # Input shape: (batch, seq_len, n_heads, head_dim)
+        batch_size, seq_len_input, n_heads, head_dim = x.shape
+
         if seq_len is None:
-            seq_len = x.shape[-3]  # Assume shape is (batch, seq, heads, head_dim)
+            seq_len = seq_len_input
 
         # Create position indices
         positions = jnp.arange(seq_len)
 
         # Compute cos and sin for RoPE
         freqs = jnp.outer(positions, self.freqs)
-        cos = jnp.cos(freqs)
-        sin = jnp.sin(freqs)
+        cos = jnp.cos(freqs)  # (seq_len, head_dim//2)
+        sin = jnp.sin(freqs)  # (seq_len, head_dim//2)
 
-        # Reshape for broadcasting
-        cos = cos[:, :, None]  # (seq_len, head_dim//2, 1)
-        sin = sin[:, :, None]  # (seq_len, head_dim//2, 1)
+        # Reshape for broadcasting with input tensor
+        cos = cos[:, None, :]  # (seq_len, 1, head_dim//2)
+        sin = sin[:, None, :]  # (seq_len, 1, head_dim//2)
 
-        # Split input into even and odd dimensions
-        x_even = x[..., ::2]  # (..., seq_len, head_dim//2)
-        x_odd = x[..., 1::2]  # (..., seq_len, head_dim//2)
+        # Split input into even and odd dimensions along head_dim
+        x_even = x[..., ::2]  # (batch, seq_len, n_heads, head_dim//2)
+        x_odd = x[..., 1::2]  # (batch, seq_len, n_heads, head_dim//2)
 
         # Apply RoPE rotation
         x_rotated = jnp.concatenate([
